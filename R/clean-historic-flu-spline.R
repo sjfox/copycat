@@ -1,7 +1,7 @@
 library(tidyverse)
 library(epidatr)
 library(MMWRweek)
-set_api_key('00f36c125549')
+# set_api_key('00f36c125549')
 
 # HHS data ------------------------------------------------------------
 # flusurv_locs <- read_csv('https://raw.githubusercontent.com/cmu-delphi/delphi-epidata/main/labels/flusurv_locations.txt',col_names = F) |> 
@@ -90,9 +90,26 @@ ili |>
   select(metric, location = region, epiweek, value = ilip)  -> ili_clean 
 
 
+# NHSN data set -----------------------------------------------------------
+nhsn <- RSocrata::read.socrata(url = "https://data.cdc.gov/resource/mpgq-jmmr.json") %>% 
+  dplyr::filter(weekendingdate >= as.Date("2022-02-01"))
+
+#remove  VI and AS as they are not included for FluSight, keep only necessary vars and add epiweek and epiyear 
+nhsn <- nhsn %>% 
+  dplyr::filter(!jurisdiction %in% c("VI", "AS", "GU", "MP")) %>% 
+  dplyr::select(jurisdiction, weekendingdate, totalconfflunewadm) %>% 
+  dplyr::rename("value" = "totalconfflunewadm", "date"="weekendingdate", "state"="jurisdiction") %>% 
+  dplyr::mutate(epiweek = as.Date(date), 
+                value = as.numeric(value),
+                location = str_replace(state, "USA", "US")) |> 
+  mutate(metric = 'nhsn') |> 
+  select(metric, location, epiweek, value)
+
+
 # Combine datasets --------------------------------------------------------
 flusurv_clean |> 
-  bind_rows(ili_clean) |> 
+  bind_rows(ili_clean,
+            nhsn) |> 
   mutate(year = MMWRweek(epiweek)$MMWRyear,
          week = MMWRweek(epiweek)$MMWRweek) |> 
   mutate(resp_season = ifelse(week>=40, year, year-1)) |> 
@@ -106,9 +123,8 @@ get_seasonal_spline_vals <- function(season_weeks, value){
   # add_before <- 
   # season_weeks
   # browser()
-  
   padding <- 4
-  new_value <- c(rep(0,padding), value, rep(0,padding))
+  new_value <- c(rep(head(value, 1),padding), value, rep(tail(value, 1),padding))
   new_season_weeks <- c(rev(min(season_weeks) - 1:padding), season_weeks, max(season_weeks)+1:padding)
   weekly_change <- lead(new_value+1)/(new_value+1)
   weekly_change <- ifelse(is.na(weekly_change), 1, weekly_change)
@@ -166,9 +182,8 @@ all_flu |>
   select(metric, location, resp_season, resp_season_week, pred, pred_se) -> traj_db
 
 
-## todo tomorrow: figure out how to incorporate uncertainty from loess
-
 traj_db |> 
+  filter(metric == 'nhsn')
   ggplot(aes(resp_season_week, exp(pred), group = interaction(metric, location, resp_season))) +
   geom_line(alpha = .1) 
 

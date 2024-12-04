@@ -15,6 +15,7 @@ flu_data <- read_csv('https://raw.githubusercontent.com/cdcepi/FluSight-forecast
 
 curr_resp_season <- 2024 ## Set the current year
 first_week_of_season <- '2024-10-05' ## This is used to start the season of the recent data
+quantiles_needed <- c(0.01, 0.025, seq(0.05, 0.95, by = 0.05), 0.975, 0.99)
 
 flu_data |> 
   mutate(year = MMWRweek(date)$MMWRyear,
@@ -52,7 +53,7 @@ for(loc in locations$location_name){
                       forecast_horizon = fcast_horizon,
                       nsamps = 1000,
                       min_allowed_weight = 0.02,
-                      top_matches = 100,
+                      top_matches = 500,
                       error_exponentiation = 2,
                       nbinom_disp = 100) |>
     mutate(forecast = forecast-1) |>
@@ -213,7 +214,7 @@ locations$location_name |>
 
 
 plot_grid(plotlist = plots) |> 
-  save_plot(filename = paste0('figures/us-rt/', forecast_date + 7, 'rt-forecast.png'), base_height = 14, base_asp = 1.8, bg = 'white')
+  save_plot(filename = paste0('figures/us-rt/', forecast_date + 7, '_rt-forecast.png'), base_height = 14, base_asp = 1.8, bg = 'white')
 
 
 # Move file to correct location -------------------------------------------------
@@ -222,7 +223,7 @@ library(hubValidations)
 file.copy(from=paste0("processed-data/us-rt-forecasts/", forecast_date + 7, "-UGA_flucast-Copycat.csv"), 
           to=paste0("../FluSight-forecast-hub/model-output/UGA_flucast-Copycat/", 
                     forecast_date + 7, 
-                    "-UGA_flucast-Copycat.csv"), copy.mode = TRUE)
+                    "-UGA_flucast-Copycat.csv"), copy.mode = TRUE, overwrite = T)
 
 
 hubValidations::validate_submission(hub_path = '~/projects/FluSight-forecast-hub/',

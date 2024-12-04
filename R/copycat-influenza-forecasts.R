@@ -5,7 +5,7 @@ library(lubridate)
 library(MMWRweek)
 
 # Clean HHS influenza data ------------------------------------------------
-refresh_data <- T
+refresh_data <- F
 flu_hhs_data_loc <- 'raw-data/flu-hhs-data.rda'
 if(!file.exists(flu_hhs_data_loc)  | refresh_data){
   source('R/fetch-flu-hhs-data.R')
@@ -15,13 +15,29 @@ if(!file.exists(flu_hhs_data_loc)  | refresh_data){
   load(flu_hhs_data_loc)
 }
 
+flu_data <- read_csv('https://raw.githubusercontent.com/cdcepi/FluSight-forecast-hub/refs/heads/main/target-data/target-hospital-admissions.csv')
+
+
 flu_data |> 
   mutate(year = MMWRweek(date)$MMWRyear,
          week = MMWRweek(date)$MMWRweek) |> 
   mutate(resp_season = ifelse(week>=40, year, year-1))  |> 
-  group_by(location, location_name, resp_season) |> 
-  arrange(date) |> 
+  filter(date >= '2024-10-05') |> 
+  group_by(location, location_name, resp_season) |>
+  arrange(date) |>
   mutate(resp_season_week = seq_along(week)) -> recent_flu_cleaned
+
+
+# flu_data |> 
+#   filter(date > '2024-07-01') |> 
+#   ggplot(aes(week, value)) +
+#   geom_point(data = flu_data |> 
+#                filter(date > '2023-08-01', date < '2023-12-30'), aes(week, value), color = 'red') +
+#   geom_point() +
+#   cowplot::theme_cowplot()+
+#   cowplot::background_grid(major = 'y', minor = 'y') +
+#   facet_wrap(~location_name, scales = 'free_y') -> temp_plot
+# cowplot::save_plot('figures/new_flu_comp.png', temp_plot, base_height = 12, base_asp = 1.6, bg = 'white')
 
 ## Should be the latest expected date, and that date should match
 ## forecast_date variable value below
@@ -34,8 +50,8 @@ load('raw-data/locations-data.rda')
 load('processed-data/clean-historic-flu-spline.rda')
 
 ## Switch to the date of the most recent HHS weekly data point
-forecast_date <- ymd('2024-01-27')
-curr_resp_season <- 2023
+forecast_date <- ymd('2024-11-23')
+curr_resp_season <- 2024
 quantiles_needed <- c(0.01, 0.025, seq(0.05, 0.95, by = 0.05), 0.975, 0.99)
 
 
@@ -56,7 +72,7 @@ for(loc in locations$location_name){
     select(resp_season_week, value, curr_weekly_change) |>
     get_traj_forecast(db = traj_db,
                       recent_weeks_touse = 100,
-                      resp_week_range = 5,
+                      resp_week_range = 2,
                       forecast_horizon = 4) |>
     mutate(forecast = forecast-1) |>
     mutate(forecast = ifelse(forecast < 0, 0, forecast)) -> forecast_trajectories
@@ -148,17 +164,17 @@ for(loc in locations$location_name){
 }
 loc_forecasts |>
   bind_rows() |>
-  write_csv(paste0("processed-data/rt-forecasts/", forecast_date + 7,"-UGA_flucast-Copycat.csv"))
+  write_csv(paste0("processed-data/rt-forecasts/", forecast_date + 7, "-UGA_flucast-Copycat.csv"))
 
 
 # Double check files ------------------------------------------------------
 ## Make sure to copy and put the csv in the right folder before this step
 library(hubValidations)
 hubValidations::validate_submission(hub_path = '~/projects/FluSight-forecast-hub/',
-                                    file_path = 'UGA_flucast-Copycat/2024-02-03-UGA_flucast-Copycat.csv') -> sub_validation
+                                    file_path = 'UGA_flucast-Copycat/2024-05-04-UGA_flucast-Copycat.csv') -> sub_validation
 
-hubValidations::validate_submission(hub_path = '~/projects/FluSight-forecast-hub/',
-                  file_path = 'UGA_flucast-INFLAenza/2024-02-03-UGA_flucast-INFLAenza.csv') -> sub_validation
+# hubValidations::validate_submission(hub_path = '~/projects/FluSight-forecast-hub/',
+                  # file_path = 'UGA_flucast-INFLAenza/2024-02-10-UGA_flucast-INFLAenza.csv') -> sub_validation
 
 # temp <- read_csv("../FluSight-forecast-hub/model-output/UGA_flucast-INFLAenza/2023-11-25-UGA_flucast-INFLAenza.csv")
 # temp |>
@@ -208,6 +224,7 @@ make_individual_plot <- function(curr_location_name,
       geom_line() +
       geom_point(data = curr_df, aes(date, value)) +
       geom_point(data = prev_df, aes(date, value), color = 'red',alpha = .6) +
+      scale_x_date(date_breaks = '1 month', date_labels = '%b') +
       labs(title = curr_location_name, x = NULL, y ='Admits') +
       background_grid(major = 'xy', minor = 'y') +
     coord_cartesian(ylim = c(0, max(c(curr_df$value, forecast_df$`0.75`))))
@@ -247,7 +264,7 @@ locations$location_name |>
 
 
 plot_grid(plotlist = plots) |> 
-  save_plot(filename = 'figures/rt-forecast.png', base_height = 12, base_asp = 1.6, bg = 'white')
+  save_plot(filename = 'figures/rt-forecast.png', base_height = 14, base_asp = 1.8, bg = 'white')
 
 
 # Plot trajectories -------------------------------------------------------
