@@ -5,7 +5,7 @@ This is a repository that contains the copycat forecast model
 
 # Step by step Metrocast submission instructions
 1. Clone the `copycat` repository onto your local machine (I have it in a folder called `projects/`)
-1. Fork the `flu-metrocast` github repository (https://github.com/reichlab/flu-metrocast/tree/main) and clone the forked repo to your local machine in the same folder as you put `copycat`
+1. Fork the `flu-metrocast` github repository (https://github.com/reichlab/flu-metrocast) and clone the forked repo to your local machine in the same folder as you put `copycat`
 1. Navigate to `flu-metrocast/` locally in a terminal and create a new branch (mine is called `cc_branch`):
     1. `git checkout -b cc_branch`
     1. `git remote add upstream https://github.com/reichlab/flu-metrocast`
