@@ -16,7 +16,7 @@ library(MMWRweek)
 flusurv_locs <- read_csv('https://raw.githubusercontent.com/cmu-delphi/delphi-epidata/main/labels/flusurv_locations.txt',col_names = F) |> 
   pull(X1)
 pub_flusurv(locations = flusurv_locs, 
-            epiweeks = epirange(199001, 202320)) -> flusurv
+            epiweeks = epirange(199001, 202520)) -> flusurv
 flusurv |> 
   mutate(metric = 'flusurv') |> 
   select(metric, location, epiweek,  value = rate_overall) -> flusurv_clean
@@ -25,10 +25,10 @@ flusurv |>
 # ILI data ----------------------------------------------------------------
 ili_locs <- c(tolower(state.abb), 'pr', 'dc', paste0('hhs', 1:10), paste0('cen', 1:9), 'nat')
 pub_fluview(regions = ili_locs,
-            epiweeks = epirange(199001, 202320)) -> ili
+            epiweeks = epirange(199001, 202520)) -> ili
 ## Clinical data only after 2015, so stick to wili for now so we have as many time periods as we can
 pub_fluview_clinical(regions = ili_locs,
-                     epiweeks = epirange(199001, 202320)) -> ili_clinical_epidat
+                     epiweeks = epirange(199001, 202520)) -> ili_clinical_epidat
 
 
 ### Get all of the percent positive data from before 2016
@@ -106,10 +106,36 @@ nhsn <- nhsn %>%
   select(metric, location, epiweek, value)
 
 
+
+# NSSP Dataset ------------------------------------------------------------
+
+nssp <- RSocrata::read.socrata(url = "https://data.cdc.gov/resource/rdmq-nq56.json") |> 
+  dplyr::filter(week_end >= as.Date("2022-02-01"),
+                county == 'All')
+
+nssp |> 
+  filter(geography == 'United States') |> 
+  as_tibble() |> 
+  ggplot(aes(week_end, as.numeric(percent_visits_influenza))) + 
+  geom_line()
+
+#remove  VI and AS as they are not included for FluSight, keep only necessary vars and add epiweek and epiyear 
+nssp <- nssp %>% 
+  dplyr::filter(!geography %in% c("VI", "AS", "GU", "MP")) %>% 
+  dplyr::select(geography, week_end, percent_visits_influenza) %>% 
+  dplyr::rename("value" = "percent_visits_influenza", "date"="week_end", "state"="geography") %>% 
+  dplyr::mutate(epiweek = as.Date(date), 
+                value = as.numeric(value)/100,
+                location = str_replace(state, "USA", "US")) |> 
+  mutate(metric = 'nssp') |> 
+  select(metric, location, epiweek, value)
+
+
 # Combine datasets --------------------------------------------------------
 flusurv_clean |> 
   bind_rows(ili_clean,
-            nhsn) |> 
+            nhsn,
+            nssp) |> 
   mutate(year = MMWRweek(epiweek)$MMWRyear,
          week = MMWRweek(epiweek)$MMWRweek) |> 
   mutate(resp_season = ifelse(week>=40, year, year-1)) |> 
@@ -183,7 +209,6 @@ all_flu |>
 
 
 traj_db |> 
-  filter(metric == 'nhsn')
   ggplot(aes(resp_season_week, exp(pred), group = interaction(metric, location, resp_season))) +
   geom_line(alpha = .1) 
 
@@ -191,4 +216,3 @@ traj_db |>
 save(traj_db, all_flu, file = 'processed-data/clean-historic-flu-spline.rda')
 
 # load('processed-data/clean-historic-flu-spline.rda')
-
