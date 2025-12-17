@@ -10,6 +10,8 @@ source('R/city-copycat-function.R')
 curr_resp_season <- 2025
 ## Switch to the date you are making the forecast
 forecast_date <- Sys.Date() 
+# forecast_date <- ymd('2025-12-24')
+
 quantiles_needed <- c(0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.975)
 weeks_to_drop <- 0
 
@@ -144,7 +146,7 @@ location_forecasts |>
   filter(horizon >=0) -> location_forecasts
 
 location_forecasts |> 
-  write_csv(paste0("processed-data/city-rt-forecasts/", forecast_date + 3, "-epiENGAGE-Copycat.csv"))
+  write_csv(paste0("processed-data/city-rt-forecasts/", forecast_date + 3, "-NAU-Copycat.csv"))
 
 
 # Plot forecasts ----------------------------------------------------------
@@ -210,16 +212,16 @@ plot_grid(plotlist = plots) |>
 # Double check files ------------------------------------------------------
 library(hubValidations)
 
-file.copy(from=paste0("processed-data/city-rt-forecasts/", forecast_date + 3, "-epiENGAGE-Copycat.csv"), 
-          to=paste0("../flu-metrocast/model-output/epiENGAGE-Copycat/", 
+file.copy(from=paste0("processed-data/city-rt-forecasts/", forecast_date + 3, "-NAU-Copycat.csv"), 
+          to=paste0("../flu-metrocast/model-output/NAU-Copycat/", 
                     forecast_date + 3, 
-                    "-epiENGAGE-Copycat.csv"), copy.mode = TRUE, overwrite = T)
+                    "-NAU-Copycat.csv"), copy.mode = TRUE, overwrite = T)
 
 hubValidations::validate_submission(hub_path = '~/projects/flu-metrocast',
-                                    file_path = paste0('epiENGAGE-Copycat/', forecast_date + 3, '-epiENGAGE-Copycat.csv')) -> sub_validation
+                                    file_path = paste0('NAU-Copycat/', forecast_date + 3, '-NAU-Copycat.csv')) -> sub_validation
 
-# hubValidations::validate_submission(hub_path = '~/projects/FluSight-forecast-hub/',
-# file_path = 'UGA_flucast-INFLAenza/2024-02-10-UGA_flucast-INFLAenza.csv') -> sub_validation
+# hubValidations::validate_submission(hub_path = '~/projects/flu-metrocast',
+#                                     file_path = paste0('NAU-INFLAenza/', forecast_date + 3, '-NAU-INFLAenza.csv')) -> sub_validation
 
 # Want all \green checkmarks
 sub_validation
@@ -227,3 +229,46 @@ sub_validation
 ## Want to make sure there are no missing required values
 sub_validation$req_vals$missing
 
+
+# 
+# read_csv(paste0('../flu-metrocast/model-output/epiENGAGE-INFLAenza/', forecast_date + 3, '-epiENGAGE-INFLAenza.csv')) ->temp
+# 
+# location_info
+# load('raw-data/locations-data.rda')
+# 
+# temp |> 
+#   left_join(locations |> 
+#               select(location, location_name)) |> 
+#   mutate(location = ifelse(!is.na(location_name), tolower(location_name), location)) |> 
+#   select(-location_name) |> 
+#   write_csv(paste0('../flu-metrocast/model-output/epiENGAGE-INFLAenza/', forecast_date + 3, '-epiENGAGE-INFLAenza.csv'))
+# 
+# 
+# temp |> 
+#   mutate(target = ifelse(target == 'wk inc flu prop ed visits', 'Flu ED visits pct', target)) |> 
+#   filter(target %in% c('Flu ED visits pct', 'ILI ED visits pct'),
+#          location != 'new york') |> 
+#   write_csv(paste0('../flu-metrocast/model-output/epiENGAGE-INFLAenza/', forecast_date + 3, '-epiENGAGE-INFLAenza.csv'))
+# 
+# temp |> 
+#   filter(output_type_id %in% quantiles_needed) |> 
+#   write_csv(paste0('../flu-metrocast/model-output/epiENGAGE-INFLAenza/', forecast_date + 3, '-epiENGAGE-INFLAenza.csv'))
+
+
+# temp |> 
+#   filter(location %in% location_info$location) |> 
+#   write_csv(paste0('../flu-metrocast/model-output/epiENGAGE-INFLAenza/', forecast_date + 3, '-epiENGAGE-INFLAenza.csv'))
+# 
+# 
+# temp |> 
+#   mutate(value = value*100) |> 
+#   write_csv(paste0('../flu-metrocast/model-output/epiENGAGE-INFLAenza/', forecast_date + 3, '-epiENGAGE-INFLAenza.csv'))
+# 
+# list.files('../flu-metrocast/model-output/NAU-Copycat', full.names = T) -> file_names
+# 
+# change_name_resave <- function(file_path){
+#   # browser()
+#   read_csv(file_path) |> 
+#     write_csv(str_replace(file_path, pattern = 'epiENGAGE', replacement = 'NAU'))
+# }
+# file_names |> map(change_name_resave)
